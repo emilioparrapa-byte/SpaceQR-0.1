@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import sqlite3 from "sqlite3";
 import session from "express-session";
 import bodyParser from "body-parser";
@@ -11,28 +11,35 @@ import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import rateLimit from "express-rate-limit";
 
+declare module "express-session" {
+  interface SessionData {
+    isAdmin?: boolean;
+    userName?: string;
+  }
+}
+
 dotenv.config();
 
-const __dirname = path.dirname(decodeURIComponent(new URL(import.meta.url).pathname));
+const __dirname: string = path.dirname(decodeURIComponent(new URL(import.meta.url).pathname));
 
 const app = express();
 const server = createServer(app);
 const io = new Server(server);
-const PORT = process.env.PORT || 3000;
-const ADMIN_PW = process.env.ADMIN_PW || "flujo2024";
-const SESSION_SECRET = process.env.SESSION_SECRET || "your-secret-key";
-const EMAIL_HOST = process.env.EMAIL_HOST || "";
-const EMAIL_PORT = Number(process.env.EMAIL_PORT || 587);
-const EMAIL_SECURE = process.env.EMAIL_SECURE === "true";
-const EMAIL_USER = process.env.EMAIL_USER || "";
-const EMAIL_PASS = process.env.EMAIL_PASS || "";
-const EMAIL_FROM = process.env.EMAIL_FROM || "no-reply@campana-unison.local";
+const PORT: number = Number(process.env.PORT) || 3000;
+const ADMIN_PW: string = process.env.ADMIN_PW || "flujo2024";
+const SESSION_SECRET: string = process.env.SESSION_SECRET || "your-secret-key";
+const EMAIL_HOST: string = process.env.EMAIL_HOST || "";
+const EMAIL_PORT: number = Number(process.env.EMAIL_PORT) || 587;
+const EMAIL_SECURE: boolean = process.env.EMAIL_SECURE === "true";
+const EMAIL_USER: string = process.env.EMAIL_USER || "";
+const EMAIL_PASS: string = process.env.EMAIL_PASS || "";
+const EMAIL_FROM: string = process.env.EMAIL_FROM || "no-reply@campana-unison.local";
 
 // ─── Logging ──────────────────────────────────────────────────────────────────
-const LOGS_DIR = path.join(__dirname, "logs");
+const LOGS_DIR: string = path.join(__dirname, "logs");
 if (!fs.existsSync(LOGS_DIR)) fs.mkdirSync(LOGS_DIR);
 
-const log = (action, details = {}) => {
+const log = (action: string, details: Record<string, any> = {}): void => {
   const entry = { ts: new Date().toISOString(), action, ...details };
   const line = JSON.stringify(entry);
   console.log(line);
@@ -50,7 +57,7 @@ const emailTransporter = EMAIL_HOST && EMAIL_USER && EMAIL_PASS
     })
   : null;
 
-const sendConfirmationEmail = async (email, date, slot, name) => {
+const sendConfirmationEmail = async (email: string, date: string, slot: string, name: string): Promise<void> => {
   if (!emailTransporter || !email) return;
   try {
     await emailTransporter.sendMail({
@@ -61,7 +68,7 @@ const sendConfirmationEmail = async (email, date, slot, name) => {
       html: `<p>Hola <strong>${name}</strong>,</p><p>Tu reservación para el <strong>${date}</strong> en el horario <strong>${slot}</strong> ha sido confirmada.</p><p>Gracias.</p>`,
     });
   } catch (err) {
-    log("email_error", { email, error: err.message });
+    log("email_error", { email, error: (err as Error).message });
   }
 };
 
@@ -100,7 +107,7 @@ app.use(
 );
 
 // Request logger
-app.use((req, _res, next) => {
+app.use((req: Request, _res: Response, next: () => void) => {
   if (req.path.startsWith("/api/")) {
     log("request", { method: req.method, path: req.path, ip: req.ip });
   }
@@ -110,7 +117,7 @@ app.use((req, _res, next) => {
 app.use(express.static(path.join(__dirname, "public")));
 
 // ─── Database ─────────────────────────────────────────────────────────────────
-const db = new sqlite3.Database("./bookings.db", (err) => {
+const db: sqlite3.Database = new sqlite3.Database("./bookings.db", (err) => {
   if (err) {
     log("db_error", { error: err.message });
   } else {
@@ -127,11 +134,11 @@ const db = new sqlite3.Database("./bookings.db", (err) => {
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const pad = (n) => String(n).padStart(2, "0");
+const pad = (n: number): string => String(n).padStart(2, "0");
 
-const isValidDateString = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value);
-const getNormalizedDate = (value) => new Date(`${value}T00:00:00`);
-const isValidBookingDate = (dateStr) => {
+const isValidDateString = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
+const getNormalizedDate = (value: string): Date => new Date(`${value}T00:00:00`);
+const isValidBookingDate = (dateStr: string): boolean => {
   if (!isValidDateString(dateStr)) return false;
   const date = getNormalizedDate(dateStr);
   if (Number.isNaN(date.getTime())) return false;
@@ -143,8 +150,8 @@ const isValidBookingDate = (dateStr) => {
 };
 
 // All 30-min slots from 07:00 to 22:00 (30 slots)
-const ALL_SLOTS = (() => {
-  const slots = [];
+const ALL_SLOTS: string[] = (() => {
+  const slots: string[] = [];
   for (let h = 7; h < 22; h++) {
     slots.push(`${pad(h)}:00`);
     slots.push(`${pad(h)}:30`);
@@ -153,22 +160,22 @@ const ALL_SLOTS = (() => {
 })();
 
 // ─── API: Bookings ────────────────────────────────────────────────────────────
-app.get("/api/bookings/:date", (req, res) => {
-  const { date } = req.params;
+app.get("/api/bookings/:date", (req: Request, res: Response) => {
+  const { date } = req.params as { date: string };
   if (!isValidBookingDate(date)) {
     return res.status(400).json({ error: "Fecha inválida. Usa hoy o los próximos 7 días." });
   }
   db.all("SELECT * FROM bookings WHERE date = ?", [date], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
-    const bookings = {};
-    rows.forEach((row) => {
+    const bookings: Record<string, { userName: string; bookedAt: string }> = {};
+    (rows as any[]).forEach((row) => {
       bookings[row.slot] = { userName: row.userName, bookedAt: row.bookedAt };
     });
     res.json(bookings);
   });
 });
 
-app.post("/api/bookings", bookingLimiter, async (req, res) => {
+app.post("/api/bookings", bookingLimiter, async (req: Request, res: Response) => {
   const { date, slot, userName, email } = req.body;
   if (!date || !slot || !userName) {
     return res.status(400).json({ error: "Faltan campos requeridos." });
@@ -186,7 +193,7 @@ app.post("/api/bookings", bookingLimiter, async (req, res) => {
       [date, userName],
       (err2, rows) => {
         if (err2) return res.status(500).json({ error: err2.message });
-        if (rows[0].count >= 4) {
+        if ((rows as any[])[0].count >= 4) {
           return res.status(400).json({ error: "Límite de 2 horas alcanzado para este día." });
         }
 
@@ -207,8 +214,8 @@ app.post("/api/bookings", bookingLimiter, async (req, res) => {
   });
 });
 
-app.delete("/api/bookings/:date/:slot", (req, res) => {
-  const { date, slot } = req.params;
+app.delete("/api/bookings/:date/:slot", (req: Request, res: Response) => {
+  const { date, slot } = req.params as { date: string; slot: string };
   const { userName, adminPw } = req.body;
 
   if (!isValidBookingDate(date)) {
@@ -220,7 +227,7 @@ app.delete("/api/bookings/:date/:slot", (req, res) => {
     if (!row) return res.status(404).json({ error: "Reserva no encontrada." });
 
     const hasAdminAccess = req.session.isAdmin || adminPw === ADMIN_PW;
-    if (!hasAdminAccess && (!userName || userName.toLowerCase() !== row.userName.toLowerCase())) {
+    if (!hasAdminAccess && (!userName || userName.toLowerCase() !== (row as any).userName.toLowerCase())) {
       return res.status(403).json({ error: "No autorizado." });
     }
 
@@ -234,7 +241,7 @@ app.delete("/api/bookings/:date/:slot", (req, res) => {
 });
 
 // ─── API: Move booking (admin) ────────────────────────────────────────────────
-app.post("/api/bookings/move", (req, res) => {
+app.post("/api/bookings/move", (req: Request, res: Response) => {
   if (!req.session.isAdmin) return res.status(403).json({ error: "Acceso admin requerido." });
 
   const { date, fromSlot, toSlot } = req.body;
@@ -257,7 +264,7 @@ app.post("/api/bookings/move", (req, res) => {
         [toSlot, date, fromSlot],
         function (updErr) {
           if (updErr) return res.status(500).json({ error: updErr.message });
-          log("booking_moved", { date, fromSlot, toSlot, userName: row.userName });
+          log("booking_moved", { date, fromSlot, toSlot, userName: (row as any).userName });
           res.json({ message: "Reserva reasignada correctamente." });
           emitBookingUpdate(date);
         },
@@ -268,8 +275,8 @@ app.post("/api/bookings/move", (req, res) => {
 
 // ─── API: Stats ───────────────────────────────────────────────────────────────
 // Public stats for a specific date
-app.get("/api/stats/:date", (req, res) => {
-  const { date } = req.params;
+app.get("/api/stats/:date", (req: Request, res: Response) => {
+  const { date } = req.params as { date: string };
   if (!isValidBookingDate(date)) {
     return res.status(400).json({ error: "Fecha inválida." });
   }
@@ -282,11 +289,11 @@ app.get("/api/stats/:date", (req, res) => {
     const occupancyPct = Math.round((booked / total) * 100);
 
     // Occupancy by hour
-    const byHour = {};
+    const byHour: Record<string, { booked: number; total: number }> = {};
     for (let h = 7; h < 22; h++) {
       byHour[`${pad(h)}:00`] = { booked: 0, total: 2 };
     }
-    rows.forEach((r) => {
+    (rows as any[]).forEach((r) => {
       const hKey = r.slot.endsWith(":30")
         ? `${r.slot.slice(0, 2)}:00`
         : r.slot;
@@ -294,14 +301,14 @@ app.get("/api/stats/:date", (req, res) => {
     });
 
     // Peak hour
-    let peakHour = null;
+    let peakHour: string | null = null;
     let peakCount = 0;
     Object.entries(byHour).forEach(([h, v]) => {
       if (v.booked > peakCount) { peakCount = v.booked; peakHour = h; }
     });
 
     // Next available slot
-    const bookedSet = new Set(rows.map((r) => r.slot));
+    const bookedSet = new Set((rows as any[]).map((r) => r.slot));
     const nextFree = ALL_SLOTS.find((s) => !bookedSet.has(s)) || null;
 
     res.json({ date, total, booked, free, occupancyPct, byHour, peakHour, nextFree });
@@ -309,12 +316,12 @@ app.get("/api/stats/:date", (req, res) => {
 });
 
 // Admin global stats (week view)
-app.get("/api/admin/stats", (req, res) => {
+app.get("/api/admin/stats", (req: Request, res: Response) => {
   if (!req.session.isAdmin) return res.status(403).json({ error: "Acceso admin requerido." });
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const dates = Array.from({ length: 7 }, (_, i) => {
+  const dates: string[] = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
     d.setDate(d.getDate() + i);
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -323,8 +330,8 @@ app.get("/api/admin/stats", (req, res) => {
   db.all("SELECT * FROM bookings WHERE date >= ?", [dates[0]], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
 
-    const userCounts = {};
-    rows.forEach((r) => {
+    const userCounts: Record<string, number> = {};
+    (rows as any[]).forEach((r) => {
       userCounts[r.userName] = (userCounts[r.userName] || 0) + 1;
     });
     const topUsers = Object.entries(userCounts)
@@ -332,14 +339,14 @@ app.get("/api/admin/stats", (req, res) => {
       .slice(0, 10)
       .map(([name, count]) => ({ name, count }));
 
-    const perDate = {};
+    const perDate: Record<string, { booked: number; total: number }> = {};
     dates.forEach((d) => { perDate[d] = { booked: 0, total: ALL_SLOTS.length }; });
-    rows.forEach((r) => {
+    (rows as any[]).forEach((r) => {
       if (perDate[r.date]) perDate[r.date].booked++;
     });
 
-    const slotCounts = {};
-    rows.forEach((r) => {
+    const slotCounts: Record<string, number> = {};
+    (rows as any[]).forEach((r) => {
       slotCounts[r.slot] = (slotCounts[r.slot] || 0) + 1;
     });
     const topSlots = Object.entries(slotCounts)
@@ -358,12 +365,12 @@ app.get("/api/admin/stats", (req, res) => {
 });
 
 // ─── API: CSV Export (admin) ──────────────────────────────────────────────────
-app.get("/api/admin/export", (req, res) => {
+app.get("/api/admin/export", (req: Request, res: Response) => {
   if (!req.session.isAdmin) return res.status(403).json({ error: "Acceso admin requerido." });
 
-  const { from, to } = req.query;
+  const { from, to } = req.query as { from?: string; to?: string };
   let query = "SELECT * FROM bookings";
-  const params = [];
+  const params: string[] = [];
 
   if (from && isValidDateString(from)) {
     query += " WHERE date >= ?";
@@ -379,7 +386,7 @@ app.get("/api/admin/export", (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
 
     const header = "id,fecha,horario,nombre,reservadoEn\n";
-    const csv = rows
+    const csv = (rows as any[])
       .map((r) =>
         `${r.id},"${r.date}","${r.slot}","${r.userName.replace(/"/g, '""')}","${r.bookedAt}"`,
       )
@@ -394,7 +401,7 @@ app.get("/api/admin/export", (req, res) => {
 });
 
 // ─── API: DB Backup download (admin) ─────────────────────────────────────────
-app.get("/api/admin/backup", (req, res) => {
+app.get("/api/admin/backup", (req: Request, res: Response) => {
   if (!req.session.isAdmin) return res.status(403).json({ error: "Acceso admin requerido." });
 
   const dbPath = path.join(__dirname, "bookings.db");
@@ -409,10 +416,10 @@ app.get("/api/admin/backup", (req, res) => {
 });
 
 // ─── API: Search user bookings (admin) ───────────────────────────────────────
-app.get("/api/admin/user/:name", (req, res) => {
+app.get("/api/admin/user/:name", (req: Request, res: Response) => {
   if (!req.session.isAdmin) return res.status(403).json({ error: "Acceso admin requerido." });
 
-  const name = decodeURIComponent(req.params.name);
+  const name = decodeURIComponent(req.params.name as string);
   db.all(
     "SELECT * FROM bookings WHERE userName LIKE ? ORDER BY date DESC, slot ASC LIMIT 50",
     [`%${name}%`],
@@ -424,7 +431,7 @@ app.get("/api/admin/user/:name", (req, res) => {
 });
 
 // ─── API: Admin auth ──────────────────────────────────────────────────────────
-app.post("/api/admin/login", adminLimiter, (req, res) => {
+app.post("/api/admin/login", adminLimiter, (req: Request, res: Response) => {
   const { password } = req.body;
   if (password === ADMIN_PW) {
     req.session.isAdmin = true;
@@ -436,19 +443,19 @@ app.post("/api/admin/login", adminLimiter, (req, res) => {
   }
 });
 
-app.post("/api/admin/logout", (req, res) => {
+app.post("/api/admin/logout", (req: Request, res: Response) => {
   req.session.isAdmin = false;
   res.json({ message: "Sesión admin cerrada." });
 });
 
-app.get("/api/admin/status", (req, res) => {
+app.get("/api/admin/status", (req: Request, res: Response) => {
   res.json({ isAdmin: !!req.session.isAdmin });
 });
 
-app.delete("/api/admin/bookings/:date", (req, res) => {
+app.delete("/api/admin/bookings/:date", (req: Request, res: Response) => {
   if (!req.session.isAdmin) return res.status(403).json({ error: "Acceso admin requerido." });
 
-  const { date } = req.params;
+  const { date } = req.params as { date: string };
   db.run("DELETE FROM bookings WHERE date = ?", [date], function (err) {
     if (err) return res.status(500).json({ error: err.message });
     log("admin_delete_all", { date, deleted: this.changes });
@@ -458,7 +465,7 @@ app.delete("/api/admin/bookings/:date", (req, res) => {
 });
 
 // ─── Serve index ──────────────────────────────────────────────────────────────
-app.get("/", (_req, res) => {
+app.get("/", (_req: Request, res: Response) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
@@ -470,11 +477,11 @@ io.on("connection", (socket) => {
   });
 });
 
-function emitBookingUpdate(date) {
+function emitBookingUpdate(date: string): void {
   db.all("SELECT * FROM bookings WHERE date = ?", [date], (err, rows) => {
     if (!err) {
-      const bookings = {};
-      rows.forEach((row) => {
+      const bookings: Record<string, { userName: string; bookedAt: string }> = {};
+      (rows as any[]).forEach((row) => {
         bookings[row.slot] = { userName: row.userName, bookedAt: row.bookedAt };
       });
       io.emit("bookingUpdate", { date, bookings });
@@ -483,7 +490,7 @@ function emitBookingUpdate(date) {
 }
 
 // ─── Auto-backup SQLite cada 24h ──────────────────────────────────────────────
-const BACKUP_DIR = path.join(__dirname, "backups");
+const BACKUP_DIR: string = path.join(__dirname, "backups");
 if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR);
 
 setInterval(() => {
@@ -497,7 +504,7 @@ setInterval(() => {
       fs.copyFileSync(src, dest);
       log("auto_backup", { dest });
     } catch (e) {
-      log("auto_backup_error", { error: e.message });
+      log("auto_backup_error", { error: (e as Error).message });
     }
   }
 }, 24 * 60 * 60 * 1000);

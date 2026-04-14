@@ -63,6 +63,7 @@ Cada usuario puede reservar hasta **4 slots de 30 minutos** por día (equivalent
 | Capa | Tecnología |
 |------|-----------|
 | Runtime | Node.js (ESM) |
+| Lenguaje | TypeScript |
 | Servidor web | Express 4 |
 | Base de datos | SQLite 3 |
 | Tiempo real | Socket.io 4 |
@@ -96,7 +97,9 @@ cp .env.example .env
 # Edita .env con tus valores (ver sección Configuración)
 
 # 4. Iniciar el servidor
-npm start
+npm run dev  # Para desarrollo (con TypeScript directamente)
+# o
+npm start    # Para producción (compila TypeScript primero)
 ```
 
 Abre tu navegador en `http://localhost:3000`

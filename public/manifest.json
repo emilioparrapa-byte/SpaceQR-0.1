@@ -1,0 +1,26 @@
+{
+  "name": "Campana de Flujo Laminar · UNISON",
+  "short_name": "Campana UNISON",
+  "description": "Sistema de reservaciones para Campana de Flujo Laminar – Universidad de Sonora",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#003F8F",
+  "theme_color": "#003F8F",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["utilities", "education"],
+  "lang": "es-MX"
+}

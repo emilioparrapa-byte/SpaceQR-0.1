@@ -1,0 +1,11 @@
+{"ts":"2026-04-14T03:46:17.474Z","action":"server_started","port":3000}
+{"ts":"2026-04-14T03:46:17.480Z","action":"db_connected"}
+{"ts":"2026-04-14T03:46:55.725Z","action":"socket_connected","id":"hYkfyWByC0z4JD5jAAAB"}
+{"ts":"2026-04-14T03:47:10.830Z","action":"request","method":"POST","path":"/api/admin/login","ip":"::1"}
+{"ts":"2026-04-14T03:47:10.832Z","action":"admin_login","ip":"::1"}
+{"ts":"2026-04-14T03:47:17.963Z","action":"request","method":"POST","path":"/api/admin/logout","ip":"::1"}
+{"ts":"2026-04-14T03:47:27.758Z","action":"request","method":"POST","path":"/api/bookings","ip":"::1"}
+{"ts":"2026-04-14T03:47:27.761Z","action":"booking_created","date":"2026-04-13","slot":"07:00","userName":"emilio"}
+{"ts":"2026-04-14T03:47:40.839Z","action":"request","method":"DELETE","path":"/api/bookings/2026-04-13/07:00","ip":"::1"}
+{"ts":"2026-04-14T03:47:40.843Z","action":"booking_cancelled","date":"2026-04-13","slot":"07:00","cancelledBy":"emilio"}
+{"ts":"2026-04-14T03:50:49.798Z","action":"socket_disconnected","id":"hYkfyWByC0z4JD5jAAAB"}

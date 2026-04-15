@@ -3,11 +3,11 @@
   "version": "1.1.0",
   "description": "Sistema de reservaciones para Campana de Flujo Laminar",
   "type": "module",
-  "main": "server.ts",
+  "main": "dist/server.js",
   "scripts": {
     "build": "tsc",
     "start": "npm run build && node dist/server.js",
-    "dev": "tsx server.ts"
+    "dev": "tsx src/server.ts"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
